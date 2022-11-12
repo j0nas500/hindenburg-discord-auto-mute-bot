@@ -61,13 +61,12 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
 
 
 async def addConnection(db_connection: DbConnection, index: int, interaction: discord.Interaction):
-    message_data: dict = interaction.message_data.get("embeds")
     user: discord.User = interaction.user
-    code: str = message_data[0].get("fields")[0].get("value")
+    code: str = interaction.message.embeds[0].fields[0].value
     code = code[1:-1]
 
     try:
-        username: str = message_data[0].get("fields")[index + 3].get("value")
+        username: str = interaction.message.embeds[0].fields[index + 3].value
         username = username.split(" [")
         username = username[0]
     except IndexError as err:
