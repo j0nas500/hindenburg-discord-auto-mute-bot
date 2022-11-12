@@ -23,7 +23,7 @@ db_connection = DbConnection(
     database=os.getenv("MYSQL_DATABASE")
 )
 
-bot = EventsListener(db_connection)
+bot = EventsListener(db_connection=db_connection)
 sio = socketio.AsyncClient()
 
 
