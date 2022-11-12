@@ -31,7 +31,7 @@ class EventsListener(commands.Bot, ABC):
         if channel_old is not None:
             sql = f"SELECT discord_voice_id FROM players WHERE discord_voice_id = {channel_old.id}"
             result = self.db_connection.execute_list(sql)
-            if result[0][0] is None:
+            if len(result) < 1 or result[0][0] is None:
                 return
 
             sql = f"SELECT discord_message_id, roomcode FROM players WHERE discord_user_id = {member.id}"
