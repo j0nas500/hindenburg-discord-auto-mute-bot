@@ -27,6 +27,13 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
     host_channel: discord.VoiceChannel = message.guild.get_channel(result[0][2])
     host_member: discord.Member = message.guild.get_member(result[0][1])
 
+    if host_channel is None:
+        await message.edit(view=None)
+        await message.delete(delay=5)
+        sql = f"UPDATE players SET discord_message_id = NULL WHERE roomcode = '{code}'"
+        db_conenction.execute(sql)
+        return f"Host leaved"
+
     sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
     result = db_conenction.execute_list(sql)
     sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
