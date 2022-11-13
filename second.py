@@ -79,4 +79,4 @@ async def on_mute(data):
 loop = asyncio.get_event_loop()
 loop.run_until_complete(runserver())
 
-bot.run(os.getenv("TOKEN2"))
+bot.run(os.getenv("TOKEN_SECOND"))
