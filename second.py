@@ -8,10 +8,6 @@ import dotenv
 import socketio
 
 from EventsListener import EventsListener
-from amongus.Setup import Setup
-from amongus.embed import updateEmbed
-from amongus.voicestate import mute_deafen, unmute_undeafen
-from db.DbConnection import DbConnection
 
 dotenv.load_dotenv()
 logging.basicConfig()
