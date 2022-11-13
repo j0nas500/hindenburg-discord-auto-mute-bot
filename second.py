@@ -17,17 +17,21 @@ dotenv.load_dotenv()
 logging.basicConfig()
 bot = EventsListener()
 sio = socketio.AsyncClient()
+JWT = os.getenv("JWT")
 
 
 async def runserver():
-    await sio.connect('http://localhost:3000')
+    await sio.connect('http://localhost:3000', headers={
+        "Authorization": f"Bearer {JWT}"
+    })
     print('my sid is', sio.sid)
     # sio.wait()
 
 
 @sio.event
-def connect():
+async def connect():
     print("I'm connected!")
+    await sio.emit("room", "second")
 
 
 @sio.event

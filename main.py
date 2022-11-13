@@ -25,17 +25,22 @@ db_connection = DbConnection(
 
 bot = EventsListener(db_connection=db_connection)
 sio = socketio.AsyncClient()
+JWT = os.getenv("JWT")
 
 
 async def runserver():
-    await sio.connect('http://localhost:3000')
+    await sio.connect('http://localhost:3000',
+                      headers={
+                          "Authorization": f"Bearer {JWT}"
+                      })
     print('my sid is', sio.sid)
     # sio.wait()
 
 
 @sio.event
-def connect():
+async def connect():
     print("I'm connected!")
+    await sio.emit("room", "main")
 
 
 @sio.event
@@ -110,9 +115,6 @@ async def on_meeting_voting_complete(data):
     await mute_deafen(bot, db_connection, sio, sql)
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
     await unmute_undeafen(bot, db_connection, sio, sql)
-
-
-
 
 
 loop = asyncio.get_event_loop()
