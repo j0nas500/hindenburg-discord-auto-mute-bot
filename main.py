@@ -100,9 +100,9 @@ async def on_player_start_meeting(data):
     if result[0][0] is None:
         return
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
-    await mute(bot, db_connection, sio, sql)
+    calls: int = await mute(bot, db_connection, sio, sql)
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
-    await unmute_undeafen(bot, db_connection, sio, sql)
+    await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
 
 
 @sio.event
@@ -112,9 +112,9 @@ async def on_meeting_voting_complete(data):
     if result[0][0] is None:
         return
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
-    await mute_deafen(bot, db_connection, sio, sql)
+    calls: int = await mute_deafen(bot, db_connection, sio, sql)
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
-    await unmute_undeafen(bot, db_connection, sio, sql)
+    await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
 
 
 loop = asyncio.get_event_loop()

@@ -57,6 +57,7 @@ async def on_mute_deafen(data: dict):
     member_id = int(data[1])
     member: discord.Member = bot.get_guild(guild_id).get_member(member_id)
     await member.edit(mute=True, deafen=True)
+    print(f"SECOND: {member.name} muted and deafed")
 
 
 @sio.event
@@ -66,6 +67,7 @@ async def on_unmute_undeafen(data):
     member_id = int(data[1])
     member: discord.Member = bot.get_guild(guild_id).get_member(member_id)
     await member.edit(mute=False, deafen=False)
+    print(f"SECOND: {member.name} unmuted and undeafed")
 
 
 @sio.event
@@ -75,6 +77,7 @@ async def on_mute(data):
     member_id = int(data[1])
     member: discord.Member = bot.get_guild(guild_id).get_member(member_id)
     await member.edit(mute=True, deafen=False)
+    print(f"SECOND: {member.name} muted")
 
 
 loop = asyncio.get_event_loop()
