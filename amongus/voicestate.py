@@ -10,11 +10,9 @@ from db.DbConnection import DbConnection
 async def mute_deafen(bot: discord.Bot, db_connection: DbConnection, sio: socketio.AsyncClient, sql_query: str, calls: int = 0):
     result = db_connection.execute_list(sql_query)
     if len(result) < 1:
-        return
+        return 0
 
-    count = 0
-    if calls is not None:
-        count = calls
+    count = calls
     channel: discord.VoiceChannel = bot.get_channel(result[0][1])
 
     for i, user in enumerate(result):
@@ -36,11 +34,9 @@ async def mute_deafen(bot: discord.Bot, db_connection: DbConnection, sio: socket
 async def unmute_undeafen(bot: discord.Bot, db_connection: DbConnection, sio: socketio.AsyncClient, sql_query: str, calls: int = 0):
     result = db_connection.execute_list(sql_query)
     if len(result) < 1:
-        return
+        return 0
 
-    count = 0
-    if calls is not None:
-        count = calls
+    count = calls
     channel: discord.VoiceChannel = bot.get_channel(result[0][1])
     for i, user in enumerate(result):
         member: discord.Member = channel.guild.get_member(user[0])
@@ -61,11 +57,9 @@ async def unmute_undeafen(bot: discord.Bot, db_connection: DbConnection, sio: so
 async def mute(bot: discord.Bot, db_connection: DbConnection, sio: socketio.AsyncClient, sql_query: str, calls: int = 0):
     result = db_connection.execute_list(sql_query)
     if len(result) < 1:
-        return
+        return 0
 
-    count = 0
-    if calls is not None:
-        count = calls
+    count = calls
     channel: discord.VoiceChannel = bot.get_channel(result[0][1])
     for i, user in enumerate(result):
         member: discord.Member = channel.guild.get_member(user[0])
