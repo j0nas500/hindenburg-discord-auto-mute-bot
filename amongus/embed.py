@@ -30,7 +30,7 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
     if host_channel is None:
         await message.edit(view=None)
         await message.delete(delay=5)
-        sql = f"UPDATE players SET discord_message_id = NULL WHERE roomcode = '{code}'"
+        sql = f"UPDATE players SET discord_message_id = NULL, is_host = FALSE WHERE roomcode = '{code}'"
         db_conenction.execute(sql)
         return f"Host leaved"
 
