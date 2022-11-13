@@ -39,10 +39,14 @@ class EventsListener(commands.Bot, ABC):
 
             sql = f"SELECT discord_message_id, roomcode FROM players WHERE discord_user_id = {member.id}"
             result = self.db_connection.execute_list(sql)
+
             sql = f"UPDATE players SET discord_user_id = NULL, discord_voice_id = NULL WHERE discord_user_id = {member.id}"
             self.db_connection.execute(sql)
             if len(result) < 1 or result[0][0] is None:
                 return
             msg: discord.Message = self.get_message(result[0][0])
-            await member.edit(mute=False, deafen=False)
+            try:
+                await member.edit(mute=False, deafen=False)
+            except discord.HTTPException as err:
+                pass
             await updateEmbed(self.db_connection, msg, result[0][1])
