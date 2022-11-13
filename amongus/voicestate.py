@@ -1,12 +1,10 @@
 import discord
 import socketio
-from pyrate_limiter import RequestRate, Limiter, Duration, BucketFullException
 
 from db.DbConnection import DbConnection
-from second import on_mute_deafen, on_unmute_undeafen
 
-rate = RequestRate(5, Duration.SECOND * 10)
-limiter = Limiter(rate)
+# rate = RequestRate(5, Duration.SECOND * 10)
+# limiter = Limiter(rate)
 
 
 async def mute_deafen(bot: discord.Bot, db_connection: DbConnection, sio: socketio.AsyncClient, sql_query: str, calls: int = 0):
@@ -17,13 +15,14 @@ async def mute_deafen(bot: discord.Bot, db_connection: DbConnection, sio: socket
     count = calls
     channel: discord.VoiceChannel = bot.get_channel(result[0][1])
 
-    for i, user in enumerate(result):
+    for i, user in enumerate(channel.members):
+    #for i, user in enumerate(result):
         member: discord.Member = channel.guild.get_member(user[0])
         if member.voice is None:
             continue
 
         print(f"{member.name} muted and deafed")
-        if i + count > 6:
+        if i + count > 3:
             await sio.emit("on_mute_deafen", {"guild_id": str(member.guild.id), "member_id": str(member.id)})
             print(f"SECOND: {member.name} muted and deafed")
             continue
@@ -41,12 +40,13 @@ async def unmute_undeafen(bot: discord.Bot, db_connection: DbConnection, sio: so
 
     count = calls
     channel: discord.VoiceChannel = bot.get_channel(result[0][1])
-    for i, user in enumerate(result):
+    for i, user in enumerate(channel.members):
+    #for i, user in enumerate(result):
         member: discord.Member = channel.guild.get_member(user[0])
         if member.voice is None:
             continue
 
-        if i + count > 6:
+        if i + count > 3:
             await sio.emit("on_unmute_undeafen", {"guild_id": str(member.guild.id), "member_id": str(member.id)})
             print(f"SECOND: {member.name} unmuted and undeafed")
             continue
@@ -64,13 +64,14 @@ async def mute(bot: discord.Bot, db_connection: DbConnection, sio: socketio.Asyn
 
     count = calls
     channel: discord.VoiceChannel = bot.get_channel(result[0][1])
-    for i, user in enumerate(result):
+    for i, user in enumerate(channel.members):
+    #for i, user in enumerate(result):
         member: discord.Member = channel.guild.get_member(user[0])
         if member.voice is None:
             continue
 
         print(f"{member.name} muted and deafed")
-        if i + count > 6:
+        if i + count > 3:
             await sio.emit("on_mute", {"guild_id": str(member.guild.id), "member_id": str(member.id)})
             print(f"SECOND: {member.name} muted")
             continue

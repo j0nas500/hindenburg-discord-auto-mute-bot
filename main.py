@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 
-import discord
 import dotenv
 import socketio
 
@@ -101,6 +100,7 @@ async def on_player_start_meeting(data):
         return
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
     calls: int = await mute(bot, db_connection, sio, sql)
+    print(calls)
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
     await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
 
@@ -113,6 +113,7 @@ async def on_meeting_voting_complete(data):
         return
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
     calls: int = await mute_deafen(bot, db_connection, sio, sql)
+    print(calls)
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
     await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
 
@@ -120,5 +121,6 @@ async def on_meeting_voting_complete(data):
 loop = asyncio.get_event_loop()
 loop.run_until_complete(runserver())
 
+
 bot.add_cog(Setup(bot=bot, db_connection=db_connection))
-bot.run(os.getenv("TOKEN"))
+bot.run(os.getenv("TOKEN_MAIN"))
