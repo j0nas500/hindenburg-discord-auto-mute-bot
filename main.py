@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 
+import discord
 import dotenv
 import socketio
 
@@ -56,14 +57,18 @@ def disconnect():
 async def on_join(data: dict):
     sql = f"SELECT discord_message_id FROM players WHERE roomcode = '{data[1][1]}'"
     result = db_connection.execute_list(sql)
+    await updateEmbed(db_connection, bot.get_message(result[0][0]), data[1][1], username=data[2][1])
     if result[0][0] is None:
         return
-    await updateEmbed(db_connection, bot.get_message(result[0][0]), data[1][1], username=data[2][1])
+    await bot.change_bot_presence(1)
     # print(data)
 
 
 @sio.event
 async def on_leave(data: dict):
+    sql = f"SELECT username FROM players"
+    result = db_connection.execute_list(sql)
+    await bot.change_bot_presence(len(result), is_sum=True)
     if data[1][1] == "null":
         return
     await updateEmbed(db_connection, bot.get_message(int(data[1][1])), data[2][1])

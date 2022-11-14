@@ -11,9 +11,11 @@ class EventsListener(commands.Bot, ABC):
     def __init__(self, db_connection: DbConnection = None):
         super().__init__(intents=discord.Intents.default())
         self.db_connection = db_connection
+        self.players = 0
 
     async def on_ready(self):
         print(f"{self.user} is ready and online!")
+        await self.change_presence(activity=discord.Activity(type=discord.ActivityType.competing, name="181.214.231.190:22023"))
 
     async def on_guild_join(self, guild: discord.Guild):
         print(f"{self.user} joined {self.guild.name}")
@@ -50,3 +52,13 @@ class EventsListener(commands.Bot, ABC):
             except discord.HTTPException as err:
                 pass
             await updateEmbed(self.db_connection, msg, result[0][1])
+
+    async def change_bot_presence(self, number: int, is_sum: bool = False):
+        if is_sum:
+            self.players = number
+            await self.change_presence(
+                activity=discord.Activity(type=discord.ActivityType.listening, name=f"{self.players} players"))
+            return
+        self.players = self.players + number
+        await self.change_presence(
+            activity=discord.Activity(type=discord.ActivityType.listening, name=f"{self.players} players"))
