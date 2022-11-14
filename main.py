@@ -7,6 +7,7 @@ import dotenv
 import socketio
 
 from EventsListener import EventsListener
+from amongus.Connect import Connect
 from amongus.Setup import Setup
 from amongus.VoicestateClass import VoicestateClass
 from amongus.embed import updateEmbed
@@ -27,6 +28,7 @@ db_connection = DbConnection(
 bot = EventsListener(db_connection=db_connection)
 sio = socketio.AsyncClient()
 JWT = os.getenv("JWT")
+
 
 async def runserver():
     await sio.connect('http://localhost:3000',
@@ -57,10 +59,10 @@ def disconnect():
 async def on_join(data: dict):
     sql = f"SELECT discord_message_id FROM players WHERE roomcode = '{data[1][1]}'"
     result = db_connection.execute_list(sql)
-    await updateEmbed(db_connection, bot.get_message(result[0][0]), data[1][1], username=data[2][1])
+    await bot.change_bot_presence(1)
     if result[0][0] is None:
         return
-    await bot.change_bot_presence(1)
+    await updateEmbed(db_connection, bot.get_message(result[0][0]), data[1][1], username=data[2][1])
     # print(data)
 
 
@@ -134,4 +136,5 @@ loop.run_until_complete(runserver())
 voice_state = VoicestateClass(bot, db_connection, sio)
 
 bot.add_cog(Setup(bot=bot, db_connection=db_connection))
+bot.add_cog(Connect(bot=bot, db_connection=db_connection))
 bot.run(os.getenv("TOKEN_MAIN"))
