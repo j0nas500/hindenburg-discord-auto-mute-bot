@@ -4,7 +4,7 @@ import discord
 import dotenv
 from discord.ext import commands
 
-from amongus.embed import addConnection
+from amongus.embed import addConnection, create_view_buttons, create_embed
 from db.DbConnection import DbConnection
 
 dotenv.load_dotenv()
@@ -13,11 +13,7 @@ dotenv.load_dotenv()
 class SelectUserName(discord.ui.Select):
     def __init__(self, options: list, db_connection: DbConnection, code: str, result, channel: discord.VoiceChannel,
                  member: discord.Member, origin_interaction: discord.Interaction):
-        super().__init__(
-            placeholder="Select",
-            min_values=1,
-            max_values=1,
-            options=options)
+        super().__init__(placeholder="Select", min_values=1, max_values=1, options=options)
         self.db_connection = db_connection
         self.code = code
         self.result = result
@@ -29,23 +25,13 @@ class SelectUserName(discord.ui.Select):
         await self.origin_interaction.edit_original_response(view=None, delete_after=5)
         await interaction.response.send_message(content=f"{self.values[0]} is your Among Us name")
 
-        embed = discord.Embed(title="Among Us Auto Mute")
-        embed.add_field(name="Code", value=f"`{self.code}`")
-        embed.add_field(name="Channel", value=self.channel.mention)
-        embed.add_field(name="Host", value=self.member.mention)
-        embed.add_field(name="Player connected", value=f"1/{len(self.result)}", inline=False)
-        i = 0
-        for row in self.result:
-            i = i + 1
-            if row[0] == self.values[0]:
-                embed.add_field(name=i, value=f"{row[0]} [{self.member.mention}]")
-                continue
-            embed.add_field(name=i, value=row[0])
+        res: list = [[self.values[0], self.member.id]]
+        embed = create_embed(self.result, res, self.code, self.channel, self.member)
+        view_buttons = create_view_buttons(self.result, self.db_connection)
 
         interaction_message: discord.InteractionMessage = await interaction.edit_original_response(content=None,
                                                                                                    embed=embed,
-                                                                                                   view=ViewUserButtons(
-                                                                                                       db_connection=self.db_connection))
+                                                                                                   view=view_buttons)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {self.channel.id}, discord_user_id = {self.member.id}, is_host = TRUE WHERE roomcode = '{self.code}' and username = '{self.values[0]}'"
         self.db_connection.execute(sql)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {self.channel.id} WHERE roomcode = '{self.code}' and is_host = FALSE"
@@ -55,91 +41,6 @@ class SelectUserName(discord.ui.Select):
 # class ViewUserName(discord.ui.View):
 #     def __init__(self, db_connection: DbConnection, code: str):
 #         super().__init__(timeout=30)
-
-
-class ViewUserButtons(discord.ui.View):
-    def __init__(self, db_connection: DbConnection):
-        super().__init__(timeout=None)
-        self.db_connection = db_connection
-
-    async def on_timeout(self):
-        await self.message.edit(content="OVER", view=self)
-        print("OVER OVER OVER")
-
-    @discord.ui.button(label="1", row=0)
-    async def button_1_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 1, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="2", row=0)
-    async def button_2_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 2, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="3", row=0)
-    async def button_3_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 3, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="4", row=0)
-    async def button_4_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 4, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="5", row=0)
-    async def button_5_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 5, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="6", row=1)
-    async def button_6_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 6, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="7", row=1)
-    async def button_7_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 7, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="8", row=1)
-    async def button_8_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 8, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="9", row=1)
-    async def button_9_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 9, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="10", row=1)
-    async def button_10_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 10, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="11", row=2)
-    async def button_11_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 11, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="12", row=2)
-    async def button_12_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 12, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="13", row=2)
-    async def button_13_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 13, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="14", row=2)
-    async def button_14_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 14, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
-
-    @discord.ui.button(label="15", row=2)
-    async def button_15_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, 15, interaction)
-        await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
 
 
 class Setup(commands.Cog):
@@ -165,7 +66,7 @@ class Setup(commands.Cog):
             await ctx.respond("Don't try it")
             return
 
-        sql = f"SELECT username FROM players WHERE roomcode = '{code}'"
+        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
         result = self.db_connection.execute_list(sql)
 
         if len(result) < 1:
@@ -206,23 +107,14 @@ class Setup(commands.Cog):
 
         interaction: discord.Interaction = await ctx.send_response(content=f"{result[0][0]} is your Among Us name")
 
-        embed = discord.Embed(title="Among Us Auto Mute")
-        embed.add_field(name="Code", value=f"`{code}`")
-        embed.add_field(name="Channel", value=channel.mention)
-        embed.add_field(name="Host", value=member.mention)
-        embed.add_field(name="Player connected", value=f"1/{len(result)}", inline=False)
-        i = 0
-        for row in result:
-            i = i + 1
-            if row[0] == result[0][0]:
-                embed.add_field(name=i, value=f"{row[0]} [{member.mention}]")
-                continue
-            embed.add_field(name=i, value=row[0])
+        view_buttons = create_view_buttons(result, self.db_connection)
+
+        res: list = [[result[0][0], member.id]]
+        embed = create_embed(res, res, code, channel, member)
 
         interaction_message: discord.InteractionMessage = await interaction.edit_original_response(content=None,
                                                                                                    embed=embed,
-                                                                                                   view=ViewUserButtons(
-                                                                                                       db_connection=self.db_connection))
+                                                                                                   view=view_buttons)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {channel.id}, discord_user_id = {member.id}, is_host = TRUE WHERE roomcode = '{code}' and username = '{result[0][0]}'"
         self.db_connection.execute(sql)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {channel.id} WHERE roomcode = '{code}' and is_host = FALSE"

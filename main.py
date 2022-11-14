@@ -27,7 +27,6 @@ bot = EventsListener(db_connection=db_connection)
 sio = socketio.AsyncClient()
 JWT = os.getenv("JWT")
 
-
 async def runserver():
     await sio.connect('http://localhost:3000',
                       headers={
@@ -35,9 +34,6 @@ async def runserver():
                       })
     print('my sid is', sio.sid)
     # sio.wait()
-
-
-voice_state = VoicestateClass(bot, db_connection, sio)
 
 
 @sio.event
@@ -130,6 +126,7 @@ async def on_meeting_voting_complete(data):
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(runserver())
+voice_state = VoicestateClass(bot, db_connection, sio)
 
 bot.add_cog(Setup(bot=bot, db_connection=db_connection))
 bot.run(os.getenv("TOKEN_MAIN"))
