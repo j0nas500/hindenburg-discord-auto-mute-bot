@@ -52,7 +52,7 @@ class Setup(commands.Cog):
     @discord.default_permissions(connect=True)
     async def setup(self, ctx,
                     room_code: discord.Option(str, name="roomcode", description="Roomcode of your Among Us Lobby",
-                                              max_length=6)):
+                                              max_length=6, min_length=4)):
         member: discord.Member = ctx.author
         if member.voice is None:
             await ctx.send_response(content="You are not in a voice Channel", ephemeral=True, delete_after=10)
