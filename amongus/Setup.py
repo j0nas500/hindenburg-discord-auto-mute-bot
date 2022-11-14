@@ -33,7 +33,7 @@ class SelectUserName(discord.ui.Select):
         embed.add_field(name="Code", value=f"`{self.code}`")
         embed.add_field(name="Channel", value=self.channel.mention)
         embed.add_field(name="Host", value=self.member.mention)
-        embed.add_field(name="Player connected", value=f"0/{len(self.result)}", inline=False)
+        embed.add_field(name="Player connected", value=f"1/{len(self.result)}", inline=False)
         i = 0
         for row in self.result:
             i = i + 1
@@ -186,18 +186,44 @@ class Setup(commands.Cog):
             await msg.edit(view=None)
             await msg.delete(delay=5)
 
-        options: list = list()
+        if len(result) > 1:
+            options: list = list()
+            for row in result:
+                select_option = discord.SelectOption(
+                    label=row[0]
+                )
+                options.append(select_option)
+
+            view_select = discord.ui.View(timeout=60)
+            interaction: discord.Interaction = await ctx.send_response(content="Select your Among Us Username",
+                                                                       ephemeral=True,
+                                                                       view=view_select)
+
+            select = SelectUserName(options, self.db_connection, code, result, channel, member, interaction)
+            view_select.add_item(select)
+            await interaction.edit_original_response(view=view_select)
+            return
+
+        interaction: discord.Interaction = await ctx.send_response(content=f"{result[0][0]} is your Among Us name")
+
+        embed = discord.Embed(title="Among Us Auto Mute")
+        embed.add_field(name="Code", value=f"`{code}`")
+        embed.add_field(name="Channel", value=channel.mention)
+        embed.add_field(name="Host", value=member.mention)
+        embed.add_field(name="Player connected", value=f"1/{len(result)}", inline=False)
+        i = 0
         for row in result:
-            select_option = discord.SelectOption(
-                label=row[0]
-            )
-            options.append(select_option)
+            i = i + 1
+            if row[0] == result[0][0]:
+                embed.add_field(name=i, value=f"{row[0]} [{member.mention}]")
+                continue
+            embed.add_field(name=i, value=row[0])
 
-        view_select = discord.ui.View(timeout=60)
-        interaction: discord.Interaction = await ctx.send_response(content="Select your Among Us Username",
-                                                                   ephemeral=True,
-                                                                   view=view_select)
-
-        select = SelectUserName(options, self.db_connection, code, result, channel, member, interaction)
-        view_select.add_item(select)
-        await interaction.edit_original_response(view=view_select)
+        interaction_message: discord.InteractionMessage = await interaction.edit_original_response(content=None,
+                                                                                                   embed=embed,
+                                                                                                   view=ViewUserButtons(
+                                                                                                       db_connection=self.db_connection))
+        sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {channel.id}, discord_user_id = {member.id}, is_host = TRUE WHERE roomcode = '{code}' and username = '{result[0][0]}'"
+        self.db_connection.execute(sql)
+        sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {channel.id} WHERE roomcode = '{code}' and is_host = FALSE"
+        self.db_connection.execute(sql)
