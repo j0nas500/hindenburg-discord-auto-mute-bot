@@ -7,6 +7,7 @@ import socketio
 
 from EventsListener import EventsListener
 from amongus.Setup import Setup
+from amongus.VoicestateClass import VoicestateClass
 from amongus.embed import updateEmbed
 from amongus.voicestate import mute_deafen, unmute_undeafen, mute
 from db.DbConnection import DbConnection
@@ -36,6 +37,9 @@ async def runserver():
     # sio.wait()
 
 
+voice_state = VoicestateClass(bot, db_connection, sio)
+
+
 @sio.event
 async def connect():
     print("I'm connected!")
@@ -59,7 +63,7 @@ async def on_join(data: dict):
     if result[0][0] is None:
         return
     await updateEmbed(db_connection, bot.get_message(result[0][0]), data[1][1], username=data[2][1])
-    print(data)
+    # print(data)
 
 
 @sio.event
@@ -77,7 +81,8 @@ async def on_game_start(data):
     if result[0][0] is None:
         return
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}'"
-    await mute_deafen(bot, db_connection, sio, sql)
+    await voice_state.perform_tasks(sql, 0)
+    # await mute_deafen(bot, db_connection, sio, sql)
 
 
 @sio.event
@@ -87,7 +92,8 @@ async def on_game_end(data):
     if result[0][0] is None:
         return
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}'"
-    await unmute_undeafen(bot, db_connection, sio, sql)
+    await voice_state.perform_tasks(sql, 1)
+    # await unmute_undeafen(bot, db_connection, sio, sql)
     sql = f"UPDATE players SET is_ghost = FALSE WHERE is_ghost = TRUE and roomcode = '{data}'"
     db_connection.execute(sql)
 
@@ -98,12 +104,13 @@ async def on_player_start_meeting(data):
     result = db_connection.execute_list(sql)
     if result[0][0] is None:
         return
-    sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
-    calls: int = await mute(bot, db_connection, sio, sql)
-    print("calls")
-    print(calls)
-    sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
-    await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
+    sql_dead = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
+    # calls: int = await mute(bot, db_connection, sio, sql)
+    # print("calls")
+    # print(calls)
+    sql_alive = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
+    # await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
+    await voice_state.perform_tasks(sql_query_dead=sql_dead, sql_query_alive=sql_alive, game_state=2)
 
 
 @sio.event
@@ -112,17 +119,17 @@ async def on_meeting_voting_complete(data):
     result = db_connection.execute_list(sql)
     if result[0][0] is None:
         return
-    sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
-    calls: int = await mute_deafen(bot, db_connection, sio, sql)
-    print("calls")
-    print(calls)
-    sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
-    await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
+    sql_alive = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = FALSE"
+    # calls: int = await mute_deafen(bot, db_connection, sio, sql)
+    # print("calls")
+    # print(calls)
+    sql_dead = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
+    # await unmute_undeafen(bot, db_connection, sio, sql, calls=calls)
+    await voice_state.perform_tasks(sql_query_alive=sql_alive, sql_query_dead=sql_dead, game_state=3)
 
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(runserver())
-
 
 bot.add_cog(Setup(bot=bot, db_connection=db_connection))
 bot.run(os.getenv("TOKEN_MAIN"))
