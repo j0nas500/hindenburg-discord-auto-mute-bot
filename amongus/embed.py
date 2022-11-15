@@ -4,48 +4,52 @@ import discord
 from db.DbConnection import DbConnection
 
 
-class UserButton(discord.ui.Button):
-    def __init__(self, label: str, row: int, db_connection: DbConnection):
-        super().__init__(label=label, row=row)
+class SelectUserNameOptions(discord.ui.Select):
+    def __init__(self, options: list, db_connection: DbConnection, code: str):
+        super().__init__(placeholder="Select your in-game name", min_values=1, max_values=1, options=options)
         self.db_connection = db_connection
+        self.code = code
 
-    async def callback(self, interaction: discord.Interaction):
-        msg = await addConnection(self.db_connection, int(self.label), interaction)
+    async def callback(self, interaction):
+        if self.values[0] == "unlink":
+            msg = await addConnection(self.db_connection, interaction, self.values[0], self.code, is_unlink=True)
+        else:
+            msg = await addConnection(self.db_connection, interaction, self.values[0], self.code)
         await interaction.response.send_message(content=msg, ephemeral=True, delete_after=10)
 
 
-def create_view_buttons(result, db_connection: DbConnection):
-    view_buttons = discord.ui.View(timeout=None)
-    row = 0
-    for i, user in enumerate(result):
-        view_buttons.add_item(UserButton(str(i + 1), row, db_connection))
-        if (i + 1) % 5 == 0:
-            row = row + 1
+def create_user_options(db_connection: DbConnection, roomcode: str):
+    sql = f"SELECT username FROM players WHERE roomcode = '{roomcode}' and discord_user_id IS NULL"
+    result = db_connection.execute_list(sql)
 
-    return view_buttons
+    options: list = list()
+    for username in result:
+        select_option = discord.SelectOption(label=username[0])
+        options.append(select_option)
+    options.append(discord.SelectOption(label="unlink"))
+    return options
 
 
 def create_embed(all_players, connected_players, code: str, host_channel: discord.VoiceChannel,
                  host_member: discord.Member):
-    embed = discord.Embed(title="Among Us Auto Mute")
-    embed.add_field(name="Code", value=f"`{code}`")
-    embed.add_field(name="Channel", value=host_channel.mention)
-    embed.add_field(name="Host", value=host_member.mention)
-    embed.add_field(name="Player connected", value=f"{len(connected_players)}/{len(all_players)}", inline=False)
+    embed = discord.Embed(title="Among Us Auto Mute", color=discord.Color.green())
+    embed.add_field(name="Host", value=host_member.mention, inline=True)
+    embed.add_field(name="Channel", value=host_channel.mention, inline=True)
+    embed.add_field(name="Players Linked", value=f"{len(connected_players)}/{len(all_players)}", inline=True)
+    embed.add_field(name="🔒 Code", value=f"{code}", inline=False)
 
-    for i, row in enumerate(all_players):
+    for row in all_players:
         if len(row) > 1 and row[1] is None:
-            embed.add_field(name=i + 1, value=row[0])
+            embed.add_field(name=row[0], value="unlinked")
             continue
 
         member: discord.Member = host_channel.guild.get_member(row[1])
-        embed.add_field(name=i + 1, value=f"{row[0]} [{member.mention}]")
+        embed.add_field(name=row[0], value=f"{member.mention}")
 
     return embed
 
 
 async def updateEmbed(db_conenction: DbConnection, message: discord.Message, code: str, username: str = None):
-
     sql = f"SELECT username, discord_user_id, discord_voice_id FROM players WHERE roomcode = '{code}' and is_host = TRUE"
     result = db_conenction.execute_list(sql)
 
@@ -77,7 +81,9 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
         return f"No Lobby with room code {code} found!"
 
     embed = create_embed(result, result2, code, host_channel, host_member)
-    view_buttons = create_view_buttons(result, db_conenction)
+    view_buttons = discord.ui.View(timeout=None)
+    options = create_user_options(db_connection=db_conenction, roomcode=code)
+    view_buttons.add_item(SelectUserNameOptions(options, db_conenction, code))
 
     if username is not None:
         sql = f"UPDATE players SET discord_message_id = {message.id} WHERE roomcode = '{code}' and username = '{username}'"
@@ -86,17 +92,8 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
     await message.edit(embed=embed, view=view_buttons)
 
 
-async def addConnection(db_connection: DbConnection, index: int, interaction: discord.Interaction):
+async def addConnection(db_connection: DbConnection, interaction: discord.Interaction, username: str, code: str, is_unlink: bool = False):
     user: discord.User = interaction.user
-    code: str = interaction.message.embeds[0].fields[0].value
-    code = code[1:-1]
-
-    try:
-        username: str = interaction.message.embeds[0].fields[index + 3].value
-        username = username.split(" [")
-        username = username[0]
-    except IndexError as err:
-        return f"No User with Number {index}"
 
     if user.voice is None:
         return "You are not in a voice Channel"
@@ -113,6 +110,38 @@ async def addConnection(db_connection: DbConnection, index: int, interaction: di
 
     host_channel: discord.VoiceChannel = interaction.guild.get_channel(result[0][0])
     host_member: discord.Member = interaction.guild.get_member(result[0][1])
+
+    if is_unlink:
+        if user.id == host_member.id:
+            await interaction.message.edit(view=None)
+            await interaction.message.delete(delay=5)
+            sql = f"UPDATE players SET discord_message_id = NULL, is_host = FALSE WHERE roomcode = '{code}'"
+            db_connection.execute(sql)
+            return "Host Unlinked"
+        sql = f"SELECT username FROM players WHERE discord_user_id = {user.id}"
+        result = db_connection.execute_list(sql)
+        if len(result) < 1:
+            return f"{user.mention} not linked"
+
+        sql = f"UPDATE players SET discord_user_id = NULL, discord_voice_id = NULL WHERE discord_user_id = {user.id}"
+        db_connection.execute(sql)
+
+        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
+        result = db_connection.execute_list(sql)
+        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+        result2 = db_connection.execute_list(sql)
+
+        if len(result) < 1:
+            return f"No Lobby with room code {code} found!"
+
+        embed = create_embed(result, result2, code, host_channel, host_member)
+        view = discord.ui.View(timeout=None)
+        options = create_user_options(db_connection, code)
+        view.add_item(SelectUserNameOptions(options, db_connection, code))
+
+        await interaction.message.edit(embed=embed, view=view)
+
+        return f"{user.mention} unlinked"
 
     if channel.id != host_channel.id:
         return f"You must be in this voice Channel {host_channel.mention}"
@@ -139,6 +168,9 @@ async def addConnection(db_connection: DbConnection, index: int, interaction: di
         return f"No Lobby with room code {code} found!"
 
     embed = create_embed(result, result2, code, host_channel, host_member)
+    view = discord.ui.View(timeout=None)
+    options = create_user_options(db_connection, code)
+    view.add_item(SelectUserNameOptions(options, db_connection, code))
 
-    await interaction.message.edit(embed=embed)
+    await interaction.message.edit(embed=embed, view=view)
     return f"{interaction.user.mention} conencted to the Among Us User {username}"

@@ -4,7 +4,7 @@ import discord
 import dotenv
 from discord.ext import commands
 
-from amongus.embed import addConnection, create_view_buttons, create_embed
+from amongus.embed import addConnection, create_embed, create_user_options, SelectUserNameOptions, updateEmbed
 from db.DbConnection import DbConnection
 
 dotenv.load_dotenv()
@@ -27,15 +27,19 @@ class SelectUserName(discord.ui.Select):
 
         res: list = [[self.values[0], self.member.id]]
         embed = create_embed(self.result, res, self.code, self.channel, self.member)
-        view_buttons = create_view_buttons(self.result, self.db_connection)
+        view_user_list = discord.ui.View(timeout=None)
+        options = create_user_options(self.db_connection, self.code)
+        view_user_list.add_item(SelectUserNameOptions(options, self.db_connection, self.code))
 
         interaction_message: discord.InteractionMessage = await interaction.edit_original_response(content=None,
                                                                                                    embed=embed,
-                                                                                                   view=view_buttons)
+                                                                                                   view=view_user_list)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {self.channel.id}, discord_user_id = {self.member.id}, is_host = TRUE WHERE roomcode = '{self.code}' and username = '{self.values[0]}'"
         self.db_connection.execute(sql)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {self.channel.id} WHERE roomcode = '{self.code}' and is_host = FALSE"
         self.db_connection.execute(sql)
+
+        await updateEmbed(self.db_connection, interaction_message, self.code)
 
 
 # class ViewUserName(discord.ui.View):
@@ -106,16 +110,18 @@ class Setup(commands.Cog):
             return
 
         interaction: discord.Interaction = await ctx.send_response(content=f"{result[0][0]} is your Among Us name")
+        interaction_message: discord.InteractionMessage = await interaction.original_response()
 
-        view_buttons = create_view_buttons(result, self.db_connection)
-
-        res: list = [[result[0][0], member.id]]
-        embed = create_embed(res, res, code, channel, member)
-
-        interaction_message: discord.InteractionMessage = await interaction.edit_original_response(content=None,
-                                                                                                   embed=embed,
-                                                                                                   view=view_buttons)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {channel.id}, discord_user_id = {member.id}, is_host = TRUE WHERE roomcode = '{code}' and username = '{result[0][0]}'"
         self.db_connection.execute(sql)
         sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {channel.id} WHERE roomcode = '{code}' and is_host = FALSE"
         self.db_connection.execute(sql)
+
+        view_user_name = discord.ui.View(timeout=None)
+        options = create_user_options(self.db_connection, code)
+        view_user_name.add_item(SelectUserNameOptions(options, self.db_connection, code))
+
+        res: list = [[result[0][0], member.id]]
+        embed = create_embed(res, res, code, channel, member)
+
+        await interaction.edit_original_response(content=None, embed=embed, view=view_user_name)
