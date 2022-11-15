@@ -21,6 +21,8 @@ class VoicestateClass:
         if sql_query_dead is not None:
             result_dead = self.db_connection.execute_list(sql_query_dead)
 
+        if self.task is not None and game_state < 4:
+            return
         if self.task is not None:
             if not self.task.cancelled():
                 self.task.cancel()
