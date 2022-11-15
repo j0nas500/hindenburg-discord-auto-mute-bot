@@ -132,6 +132,16 @@ async def on_meeting_voting_complete(data):
     await voice_state.perform_tasks(sql_query_alive=sql_alive, sql_query_dead=sql_dead, game_state=3)
 
 
+@sio.event
+async def on_player_die(data):
+    sql = f"SELECT discord_message_id FROM players WHERE roomcode = '{data}'"
+    result = db_connection.execute_list(sql)
+    if result[0][0] is None:
+        return
+    sql_dead = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}' and is_ghost = TRUE"
+    await voice_state.perform_tasks(sql_dead, 4)
+
+
 loop = asyncio.get_event_loop()
 loop.run_until_complete(runserver())
 voice_state = VoicestateClass(bot, db_connection, sio)

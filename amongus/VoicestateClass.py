@@ -36,6 +36,8 @@ class VoicestateClass:
             return
         if game_state == 3:
             self.task = asyncio.create_task(self.meeting_end(result_alive, result_dead))
+        if game_state == 4:
+            self.task = asyncio.create_task(self.mute_only(result_alive))
 
     async def game_start(self, result):
         try:
@@ -79,6 +81,16 @@ class VoicestateClass:
             print("CANCELLING MEETING END AUTO MUTE")
         finally:
             print("END OF MEETING END AUTO MUTE")
+            print()
+
+    async def player_die(self, result_dead):
+        try:
+            print("START OF PLAYER DIE END AUTO MUTE")
+            await self.mute_only(result_dead)
+        except asyncio.CancelledError as err:
+            print("CANCELLING PLAYER DIE END AUTO MUTE")
+        finally:
+            print("END OF PLAYER DIE AUTO MUTE")
             print()
 
     async def mute_deafen(self, result, calls: int = 0):
@@ -143,5 +155,24 @@ class VoicestateClass:
 
             await member.edit(mute=True, deafen=False)
             print(f"MAIN: {member.name} muted")
+
+        return len(result) + count
+
+    async def mute_only(self, result, calls: int = 0):
+        if len(result) < 1:
+            return 0
+
+        count = calls
+        channel: discord.VoiceChannel = self.bot.get_channel(result[0][1])
+        for i, user in enumerate(result):
+            member: discord.Member = channel.guild.get_member(user[0])
+            if member.voice is None:
+                continue
+
+            if member.voice.mute:
+                continue
+
+            await member.edit(mute=True)
+            print(f"MAIN: {member.name} muted ONLY")
 
         return len(result) + count
