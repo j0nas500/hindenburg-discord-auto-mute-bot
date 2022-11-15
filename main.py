@@ -7,8 +7,9 @@ import dotenv
 import socketio
 
 from EventsListener import EventsListener
-from amongus.Connect import Connect
+from amongus.Link import Link
 from amongus.Setup import Setup
+from amongus.Unlink import Unlink
 from amongus.VoicestateClass import VoicestateClass
 from amongus.embed import updateEmbed
 from amongus.voicestate import mute_deafen, unmute_undeafen, mute
@@ -136,5 +137,6 @@ loop.run_until_complete(runserver())
 voice_state = VoicestateClass(bot, db_connection, sio)
 
 bot.add_cog(Setup(bot=bot, db_connection=db_connection))
-bot.add_cog(Connect(bot=bot, db_connection=db_connection))
+bot.add_cog(Link(bot=bot, db_connection=db_connection))
+bot.add_cog(Unlink(bot, db_connection))
 bot.run(os.getenv("TOKEN_MAIN"))
