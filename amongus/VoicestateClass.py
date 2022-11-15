@@ -21,7 +21,7 @@ class VoicestateClass:
         if sql_query_dead is not None:
             result_dead = self.db_connection.execute_list(sql_query_dead)
 
-        if self.task is not None and game_state < 4:
+        if self.task is not None and game_state == 4:
             return
         if self.task is not None:
             if not self.task.cancelled():
@@ -38,8 +38,10 @@ class VoicestateClass:
             return
         if game_state == 3:
             self.task = asyncio.create_task(self.meeting_end(result_alive, result_dead))
+            return
         if game_state == 4:
             self.task = asyncio.create_task(self.mute_only(result_alive))
+            return
 
     async def game_start(self, result):
         try:
