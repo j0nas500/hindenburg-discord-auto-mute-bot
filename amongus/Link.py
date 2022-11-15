@@ -5,23 +5,22 @@ from amongus.embed import updateEmbed
 from db.DbConnection import DbConnection
 
 
-class Connect(commands.Cog):
+class Link(commands.Cog):
     def __init__(self, bot: commands.Bot, db_connection: DbConnection):
         self.bot = bot
         self.db_connection = db_connection
-        self.select_roomcode: discord.Option = discord.Option(str, )
 
-    @commands.slash_command(name="connect", description="Add discord user to among us user")
+    @commands.slash_command(name="link", description="link discord user to in-game user")
     @discord.default_permissions(connect=True)
-    async def connect(self, ctx: discord.ApplicationContext,
-                      user: discord.Option(discord.SlashCommandOptionType.user),
-                      username: discord.Option(str, name="username", description="Among Us username to connect")):
+    async def link(self, ctx: discord.ApplicationContext,
+                   user: discord.Option(discord.SlashCommandOptionType.user),
+                   ingame: discord.Option(str, name="ingame", description="Among Us username to connect")):
 
         host_member: discord.Member = ctx.author
         member: discord.Member = user
-        username: str = username
+        ingame: str = ingame
 
-        if ";" in username or "'" in username or "`" in username or "DROP" in username.upper():
+        if ";" in ingame or "'" in ingame or "`" in ingame or "DROP" in ingame.upper():
             await ctx.respond("Don't try it")
             return
 
@@ -42,18 +41,18 @@ class Connect(commands.Cog):
 
         code = result[0][0]
 
-        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and username = '{username}'"
+        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and username = '{ingame}'"
         result = self.db_connection.execute_list(sql)
         sql = f"SELECT discord_message_id FROM players WHERE roomcode = '{code}'"
         result2 = self.db_connection.execute_list(sql)
         msg = discord.Message = self.bot.get_message(result2[0][0])
 
         if len(result) < 1:
-            await ctx.send_response(content=f"No User {username} in Lobby with room code {code} found!", ephemeral=True,
+            await ctx.send_response(content=f"No User {ingame} in Lobby with room code {code} found!", ephemeral=True,
                                     delete_after=10)
             return
 
         sql = f"UPDATE players SET discord_message_id = {result2[0][0]}, discord_voice_id = {channel.id}, discord_user_id = {member.id} WHERE roomcode = '{code}' and username = '{result[0][0]}'"
         self.db_connection.execute(sql)
         await updateEmbed(self.db_connection, msg, code)
-        await ctx.send_response(content=f"{member.mention} conencted to the Among Us User {username}", ephemeral=True, delete_after=10)
+        await ctx.send_response(content=f"{member.mention} linked to the Among Us User {ingame}", ephemeral=True, delete_after=10)
