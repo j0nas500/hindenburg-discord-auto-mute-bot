@@ -2,7 +2,7 @@ import os
 
 import discord
 
-from amongus.emoji import get_emoji
+from amongus.emoji import get_emoji, get_emoji_dead
 from db.DbConnection import DbConnection
 
 
@@ -33,8 +33,14 @@ def create_user_options(db_connection: DbConnection, roomcode: str):
 
 
 def create_embed(all_players, connected_players, code: str, host_channel: discord.VoiceChannel,
-                 host_member: discord.Member):
-    embed = discord.Embed(title="Among Us Auto Mute", color=discord.Color.green())
+                 host_member: discord.Member, game_state: int = 0):
+    if game_state == 0:
+        embed = discord.Embed(title="LOBBY", color=discord.Color.green())
+    if game_state == 1:
+        embed = discord.Embed(title="TASKS", color=discord.Color.blurple())
+    if game_state == 2:
+        embed = discord.Embed(title="DISCUSSION", color=discord.Color.nitro_pink())
+
     embed.add_field(name="Host", value=host_member.mention, inline=True)
     embed.add_field(name="Channel", value=host_channel.mention, inline=True)
     embed.add_field(name="Players Linked", value=f"{len(connected_players)}/{len(all_players)}", inline=True)
@@ -42,7 +48,10 @@ def create_embed(all_players, connected_players, code: str, host_channel: discor
 
     for row in all_players:
         if len(row) > 1 and row[1] is None and row[2] is not None:
-            embed.add_field(name=f"{get_emoji(row[2])} {row[0]}", value="unlinked")
+            if row[3] == 0:
+                embed.add_field(name=f"{get_emoji(row[2])} {row[0]}", value="unlinked")
+            else:
+                embed.add_field(name=f"{get_emoji_dead(row[2])} {row[0]}", value="unlinked")
             continue
 
         if len(row) > 1 and row[1] is None:
@@ -50,12 +59,15 @@ def create_embed(all_players, connected_players, code: str, host_channel: discor
             continue
 
         member: discord.Member = host_channel.guild.get_member(row[1])
-        embed.add_field(name=f"{get_emoji(row[2])} {row[0]}", value=f"{member.mention}")
+        if row[3] == 0:
+            embed.add_field(name=f"{get_emoji(row[2])} {row[0]}", value=f"{member.mention}")
+        else:
+            embed.add_field(name=f"{get_emoji_dead(row[2])} {row[0]}", value=member.mention)
 
     return embed
 
 
-async def updateEmbed(db_conenction: DbConnection, message: discord.Message, code: str, username: str = None):
+async def updateEmbed(db_conenction: DbConnection, message: discord.Message, code: str, username: str = None, game_state: int = 0):
     sql = f"SELECT username, discord_user_id, discord_voice_id FROM players WHERE roomcode = '{code}' and is_host = TRUE"
     result = db_conenction.execute_list(sql)
 
@@ -76,9 +88,9 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
         db_conenction.execute(sql)
         return f"Host leaved"
 
-    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
+    sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}'"
     result = db_conenction.execute_list(sql)
-    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+    sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
     result2 = db_conenction.execute_list(sql)
 
     if len(result) < 1:
@@ -86,7 +98,7 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
         await message.delete(delay=5)
         return f"No Lobby with room code {code} found!"
 
-    embed = create_embed(result, result2, code, host_channel, host_member)
+    embed: discord.Embed = create_embed(result, result2, code, host_channel, host_member, game_state=game_state)
     view_buttons = discord.ui.View(timeout=None)
     options = create_user_options(db_connection=db_conenction, roomcode=code)
     view_buttons.add_item(SelectUserNameOptions(options, db_conenction, code))
@@ -94,6 +106,9 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
     if username is not None:
         sql = f"UPDATE players SET discord_message_id = {message.id} WHERE roomcode = '{code}' and username = '{username}'"
         db_conenction.execute(sql)
+
+    if len(message.embeds) > 0 and message.embeds[0].to_dict() == embed.to_dict():
+        return
 
     await message.edit(embed=embed, view=view_buttons)
 
@@ -132,9 +147,9 @@ async def addConnection(db_connection: DbConnection, interaction: discord.Intera
         sql = f"UPDATE players SET discord_user_id = NULL, discord_voice_id = NULL WHERE discord_user_id = {user.id}"
         db_connection.execute(sql)
 
-        sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
+        sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}'"
         result = db_connection.execute_list(sql)
-        sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+        sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
         result2 = db_connection.execute_list(sql)
 
         if len(result) < 1:
@@ -165,9 +180,9 @@ async def addConnection(db_connection: DbConnection, interaction: discord.Intera
         sql = f"UPDATE players SET discord_user_id = {user.id}, discord_voice_id = {channel.id} WHERE roomcode = '{code}' and username = '{username}'"
         db_connection.execute(sql)
 
-    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
+    sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}'"
     result = db_connection.execute_list(sql)
-    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+    sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
     result2 = db_connection.execute_list(sql)
 
     if len(result) < 1:

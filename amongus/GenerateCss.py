@@ -4,43 +4,23 @@ from discord.ext import commands
 from amongus.emoji import get_color_name
 from db.DbConnection import DbConnection
 
-
-class GenerateCss(commands.Cog):
-    def __init__(self, bot: commands.Bot, db_connection: DbConnection):
-        self.bot = bot
-        self.db_connection = db_connection
-
-    @commands.slash_command(name="generate", description="only for j0")
-    @discord.default_permissions(connect=True)
-    async def generate(self, ctx: discord.ApplicationContext,
-                       code: discord.Option(str, min_length=4, max_length=6)):
-
-        if ctx.author.id != 257468686347141120:
-            await ctx.send_response(content="No permission", delete_after=5)
-            return
-
-        code: str = code
-        code = code.upper()
-
-        sql = f"SELECT discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
-        result = self.db_connection.execute_list(sql)
-
-        str_list = []
-        str_list.append("""
+def generate_css(data, is_list: True):
+    str_list = []
+    str_list.append("""
 .voice-state .avatar {
 display: none;
 }""")
 
-        for entry in result:
-            str_list.append(
-                """
+    for entry in data:
+        str_list.append(
+            """
 .voice-state[data-reactid*="%s"] .avatar {
 display: block;
 content: url('https://j0nas500.de/projects/amongus/color/%s.png');
 }""" % (entry[0], get_color_name(entry[1])))
 
-        str_list.append(
-            """
+    str_list.append(
+        """
 .avatar {
 height:100px !important;
 width:76px !important;
@@ -100,6 +80,33 @@ padding: 0;
 overflow: hidden;
 }
 """)
+    if is_list:
+        return str_list
+    return "".join(str_list)
+
+class GenerateCss(commands.Cog):
+    def __init__(self, bot: commands.Bot, db_connection: DbConnection):
+        self.bot = bot
+        self.db_connection = db_connection
+
+    @commands.slash_command(name="generate", description="only for j0")
+    @discord.default_permissions(connect=True)
+    async def generate(self, ctx: discord.ApplicationContext,
+                       code: discord.Option(str, min_length=4, max_length=6)):
+
+        if ctx.author.id != 257468686347141120:
+            await ctx.send_response(content="No permission", delete_after=5)
+            return
+
+        code: str = code
+        code = code.upper()
+
+        sql = f"SELECT discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+        result = self.db_connection.execute_list(sql)
+
+        str_list: list = generate_css(result, is_list=True)
+
+
         with open('discord.css', 'w') as f:
             f.writelines(str_list)
 

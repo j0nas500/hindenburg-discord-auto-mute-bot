@@ -30,7 +30,7 @@ class SelectUserName(discord.ui.Select):
         sql = f"SELECT color_id FROM players WHERE username = '{self.values[0]}' AND roomcode = '{self.code}'"
         color = self.db_connection.execute_list(sql)
 
-        res: list = [[self.values[0], self.member.id, color[0][0]]]
+        res: list = [[self.values[0], self.member.id, color[0][0], False]]
         embed = create_embed(self.result, res, self.code, self.channel, self.member)
         view_user_list = discord.ui.View(timeout=None)
         options = create_user_options(self.db_connection, self.code)
@@ -76,7 +76,7 @@ class Setup(commands.Cog):
             await ctx.respond("Don't try it")
             return
 
-        sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
+        sql = f"SELECT username, discord_user_id, color_id, is_ghost FROM players WHERE roomcode = '{code}'"
         result = self.db_connection.execute_list(sql)
 
         if len(result) < 1:
@@ -125,7 +125,7 @@ class Setup(commands.Cog):
         options = create_user_options(self.db_connection, code)
         view_user_name.add_item(SelectUserNameOptions(options, self.db_connection, code))
 
-        res: list = [[result[0][0], member.id, result[0][2]]]
+        res: list = [[result[0][0], member.id, result[0][2], False]]
         embed = create_embed(res, res, code, channel, member)
 
         await interaction.edit_original_response(content=None, embed=embed, view=view_user_name)
