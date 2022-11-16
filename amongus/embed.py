@@ -1,6 +1,8 @@
 import os
 
 import discord
+
+from amongus.emoji import get_emoji
 from db.DbConnection import DbConnection
 
 
@@ -19,14 +21,14 @@ class SelectUserNameOptions(discord.ui.Select):
 
 
 def create_user_options(db_connection: DbConnection, roomcode: str):
-    sql = f"SELECT username FROM players WHERE roomcode = '{roomcode}' and discord_user_id IS NULL"
+    sql = f"SELECT username, color_id FROM players WHERE roomcode = '{roomcode}' and discord_user_id IS NULL"
     result = db_connection.execute_list(sql)
 
     options: list = list()
     for username in result:
-        select_option = discord.SelectOption(label=username[0])
+        select_option = discord.SelectOption(label=username[0], emoji=get_emoji(username[1]))
         options.append(select_option)
-    options.append(discord.SelectOption(label="unlink"))
+    options.append(discord.SelectOption(label="unlink", emoji="❌"))
     return options
 
 
@@ -39,12 +41,16 @@ def create_embed(all_players, connected_players, code: str, host_channel: discor
     embed.add_field(name="🔒 Code", value=f"{code}", inline=False)
 
     for row in all_players:
+        if len(row) > 1 and row[1] is None and row[2] is not None:
+            embed.add_field(name=f"{get_emoji(row[2])} {row[0]}", value="unlinked")
+            continue
+
         if len(row) > 1 and row[1] is None:
             embed.add_field(name=row[0], value="unlinked")
             continue
 
         member: discord.Member = host_channel.guild.get_member(row[1])
-        embed.add_field(name=row[0], value=f"{member.mention}")
+        embed.add_field(name=f"{get_emoji(row[2])} {row[0]}", value=f"{member.mention}")
 
     return embed
 
@@ -70,9 +76,9 @@ async def updateEmbed(db_conenction: DbConnection, message: discord.Message, cod
         db_conenction.execute(sql)
         return f"Host leaved"
 
-    sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
+    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
     result = db_conenction.execute_list(sql)
-    sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
     result2 = db_conenction.execute_list(sql)
 
     if len(result) < 1:
@@ -126,9 +132,9 @@ async def addConnection(db_connection: DbConnection, interaction: discord.Intera
         sql = f"UPDATE players SET discord_user_id = NULL, discord_voice_id = NULL WHERE discord_user_id = {user.id}"
         db_connection.execute(sql)
 
-        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
+        sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
         result = db_connection.execute_list(sql)
-        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+        sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
         result2 = db_connection.execute_list(sql)
 
         if len(result) < 1:
@@ -159,9 +165,9 @@ async def addConnection(db_connection: DbConnection, interaction: discord.Intera
         sql = f"UPDATE players SET discord_user_id = {user.id}, discord_voice_id = {channel.id} WHERE roomcode = '{code}' and username = '{username}'"
         db_connection.execute(sql)
 
-    sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
+    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
     result = db_connection.execute_list(sql)
-    sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
+    sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}' and discord_user_id IS NOT NULL"
     result2 = db_connection.execute_list(sql)
 
     if len(result) < 1:
@@ -173,4 +179,4 @@ async def addConnection(db_connection: DbConnection, interaction: discord.Intera
     view.add_item(SelectUserNameOptions(options, db_connection, code))
 
     await interaction.message.edit(embed=embed, view=view)
-    return f"{interaction.user.mention} conencted to the Among Us User {username}"
+    return f"{interaction.user.mention} connected to the Among Us User {username}"
