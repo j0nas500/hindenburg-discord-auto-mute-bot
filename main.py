@@ -7,6 +7,7 @@ import dotenv
 import socketio
 
 from EventsListener import EventsListener
+from amongus.GenerateCss import GenerateCss
 from amongus.Link import Link
 from amongus.Setup import Setup
 from amongus.Unlink import Unlink
@@ -76,6 +77,15 @@ async def on_leave(data: dict):
         return
     await updateEmbed(db_connection, bot.get_message(int(data[1][1])), data[2][1])
     # print(data)
+
+
+@sio.event
+async def on_setcolor(data: dict):
+    sql = f"SELECT discord_message_id FROM players WHERE roomcode = '{data[1][1]}'"
+    result = db_connection.execute_list(sql)
+    if result[0][0] is None:
+        return
+    await updateEmbed(db_connection, bot.get_message(result[0][0]), data[1][1])
 
 
 @sio.event
@@ -149,4 +159,5 @@ voice_state = VoicestateClass(bot, db_connection, sio)
 bot.add_cog(Setup(bot=bot, db_connection=db_connection))
 bot.add_cog(Link(bot=bot, db_connection=db_connection))
 bot.add_cog(Unlink(bot, db_connection))
+bot.add_cog(GenerateCss(bot, db_connection))
 bot.run(os.getenv("TOKEN_MAIN"))
