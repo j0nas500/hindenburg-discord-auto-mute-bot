@@ -5,6 +5,7 @@ import dotenv
 from discord.ext import commands
 
 from amongus.embed import addConnection, create_embed, create_user_options, SelectUserNameOptions, updateEmbed
+from amongus.emoji import get_emoji
 from db.DbConnection import DbConnection
 
 dotenv.load_dotenv()
@@ -12,34 +13,39 @@ dotenv.load_dotenv()
 
 class SelectUserName(discord.ui.Select):
     def __init__(self, options: list, db_connection: DbConnection, code: str, result, channel: discord.VoiceChannel,
-                 member: discord.Member, origin_interaction: discord.Interaction):
+                 member: discord.Member):
         super().__init__(placeholder="Select", min_values=1, max_values=1, options=options)
         self.db_connection = db_connection
         self.code = code
         self.result = result
         self.channel = channel
         self.member = member
-        self.origin_interaction = origin_interaction
 
     async def callback(self, interaction):
-        await self.origin_interaction.edit_original_response(view=None, delete_after=5)
-        await interaction.response.send_message(content=f"{self.values[0]} is your Among Us name")
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message(content="You are not the Host", ephemeral=True, delete_after=10)
+            return
+        self.disabled = True
+        await interaction.response.edit_message(content=f"{self.values[0]} is your Among Us name", view=None)
+        sql = f"SELECT color_id FROM players WHERE username = '{self.values[0]}' AND roomcode = '{self.code}'"
+        color = self.db_connection.execute_list(sql)
 
-        res: list = [[self.values[0], self.member.id]]
+        res: list = [[self.values[0], self.member.id, color[0][0]]]
         embed = create_embed(self.result, res, self.code, self.channel, self.member)
         view_user_list = discord.ui.View(timeout=None)
         options = create_user_options(self.db_connection, self.code)
         view_user_list.add_item(SelectUserNameOptions(options, self.db_connection, self.code))
 
-        interaction_message: discord.InteractionMessage = await interaction.edit_original_response(content=None,
-                                                                                                   embed=embed,
-                                                                                                   view=view_user_list)
-        sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {self.channel.id}, discord_user_id = {self.member.id}, is_host = TRUE WHERE roomcode = '{self.code}' and username = '{self.values[0]}'"
+        await interaction.followup.edit_message(interaction.message.id, content=None, embed=embed, view=view_user_list)
+
+        #await interaction.followup.se(content=None, embed=embed, view=view_user_list)
+
+        sql = f"UPDATE players SET discord_message_id = {interaction.message.id}, discord_voice_id = {self.channel.id}, discord_user_id = {self.member.id}, is_host = TRUE WHERE roomcode = '{self.code}' and username = '{self.values[0]}'"
         self.db_connection.execute(sql)
-        sql = f"UPDATE players SET discord_message_id = {interaction_message.id}, discord_voice_id = {self.channel.id} WHERE roomcode = '{self.code}' and is_host = FALSE"
+        sql = f"UPDATE players SET discord_message_id = {interaction.message.id}, discord_voice_id = {self.channel.id} WHERE roomcode = '{self.code}' and is_host = FALSE"
         self.db_connection.execute(sql)
 
-        await updateEmbed(self.db_connection, interaction_message, self.code)
+        await updateEmbed(self.db_connection, interaction.message, self.code)
 
 
 # class ViewUserName(discord.ui.View):
@@ -70,7 +76,7 @@ class Setup(commands.Cog):
             await ctx.respond("Don't try it")
             return
 
-        sql = f"SELECT username, discord_user_id FROM players WHERE roomcode = '{code}'"
+        sql = f"SELECT username, discord_user_id, color_id FROM players WHERE roomcode = '{code}'"
         result = self.db_connection.execute_list(sql)
 
         if len(result) < 1:
@@ -95,18 +101,16 @@ class Setup(commands.Cog):
             options: list = list()
             for row in result:
                 select_option = discord.SelectOption(
-                    label=row[0]
+                    label=row[0],
+                    emoji=get_emoji(row[2])
                 )
                 options.append(select_option)
 
-            view_select = discord.ui.View(timeout=60)
-            interaction: discord.Interaction = await ctx.send_response(content="Select your Among Us Username",
-                                                                       ephemeral=True,
-                                                                       view=view_select)
-
-            select = SelectUserName(options, self.db_connection, code, result, channel, member, interaction)
+            view_select = discord.ui.View(timeout=30)
+            select = SelectUserName(options, self.db_connection, code, result, channel, member)
             view_select.add_item(select)
-            await interaction.edit_original_response(view=view_select)
+            await ctx.send_response(content="Select your Among Us Username",
+                                    view=view_select)
             return
 
         interaction: discord.Interaction = await ctx.send_response(content=f"{result[0][0]} is your Among Us name")
@@ -121,7 +125,7 @@ class Setup(commands.Cog):
         options = create_user_options(self.db_connection, code)
         view_user_name.add_item(SelectUserNameOptions(options, self.db_connection, code))
 
-        res: list = [[result[0][0], member.id]]
+        res: list = [[result[0][0], member.id, result[0][2]]]
         embed = create_embed(res, res, code, channel, member)
 
         await interaction.edit_original_response(content=None, embed=embed, view=view_user_name)
