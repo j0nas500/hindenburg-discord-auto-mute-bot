@@ -109,8 +109,6 @@ async def on_game_end(data):
     sql = f"SELECT discord_user_id, discord_voice_id FROM players WHERE discord_user_id IS NOT NULL and roomcode = '{data}'"
     await voice_state.perform_tasks(sql, 1)
     # await unmute_undeafen(bot, db_connection, sio, sql)
-    sql = f"UPDATE players SET is_ghost = FALSE WHERE is_ghost = TRUE and roomcode = '{data}'"
-    db_connection.execute(sql)
     await updateEmbed(db_connection, bot.get_message(result[0][0]), data, game_state=0)
 
 
