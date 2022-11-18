@@ -20,7 +20,7 @@ async def mute_deafen(bot: discord.Bot, db_connection: DbConnection, sio: socket
         if member.voice is None:
             continue
 
-        if (i + count) > 6:
+        if ((i + count) % 2) == 0:
             await sio.emit("on_mute_deafen", {"guild_id": str(member.guild.id), "member_id": str(member.id)})
             print(f"SECOND: {member.name} muted and deafed")
             continue
@@ -43,7 +43,7 @@ async def unmute_undeafen(bot: discord.Bot, db_connection: DbConnection, sio: so
         if member.voice is None:
             continue
 
-        if (i + count) > 6:
+        if ((i + count) % 2) == 0:
             await sio.emit("on_unmute_undeafen", {"guild_id": str(member.guild.id), "member_id": str(member.id)})
             print(f"SECOND: {member.name} unmuted and undeafed")
             continue
@@ -66,7 +66,7 @@ async def mute(bot: discord.Bot, db_connection: DbConnection, sio: socketio.Asyn
         if member.voice is None:
             continue
 
-        if (i + count) > 6:
+        if ((i + count) % 2) == 0:
             await sio.emit("on_mute", {"guild_id": str(member.guild.id), "member_id": str(member.id)})
             print(f"SECOND: {member.name} muted")
             continue
